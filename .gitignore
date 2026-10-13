@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.env
+credentials.json
+token.json
+salida_json/
+Facturas_Sedes/
+facturas_descargadas/
+*.xlsx
+*.csv
+.pytest_cache/
+.venv/
+.DS_Store
