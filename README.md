@@ -1,88 +1,66 @@
-# 🧾 Bokatas — Intelligent Multimodal OCR & National Accounting Pipeline
+# Bokatas — OCR Accounting Pipeline
 
-[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Gemini Vision](https://img.shields.io/badge/AI%20Engine-Google%20Gemini%20Vision-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
-[![Pydantic](https://img.shields.io/badge/Schema%20Validation-Pydantic%20v2-E92063?style=flat-square&logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
-[![uv](https://img.shields.io/badge/Package%20Manager-uv-DE5FE9?style=flat-square&logo=astral&logoColor=white)](https://github.com/astral-sh/uv)
-[![Impact](https://img.shields.io/badge/Impact-%3E200h%20saved%2Fyr-10B981?style=flat-square)](#operational-scale--impact)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square)](https://python.org)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
-> An end-to-end multimodal AI pipeline that autonomously ingests, normalizes, and categorizes heterogeneous supermarket tickets and supplier invoices across national chapters for **Asociación Bokatas** (NGO supporting individuals facing homelessness in Madrid, Valencia, and Zaragoza).
+An automated accounting pipeline built for [Asociación Bokatas](https://bokatas.org), an NGO that organizes weekly food distribution rounds for people experiencing homelessness in Madrid, Valencia, and Zaragoza.
 
----
+**The problem:** Volunteers buy groceries at Mercadona, Carrefour, Dia, local bakeries — then someone has to manually type every receipt into a spreadsheet, classify each item into the right budget category, and produce audit-ready reports for grant justification. That's ~200 hours/year of tedious admin work.
 
-## 📊 Operational Scale & Impact
+**The solution:** This pipeline takes photos of receipts (including crumpled thermal paper and iPhone HEIC files), runs them through Gemini Vision for OCR, validates the output with strict Pydantic schemas, and classifies every line item into one of 9 official budget categories. Output is an audit-ready Excel workbook with per-city breakdowns.
 
-| Metric | Historical Baseline | Automated Pipeline with AI |
-| :--- | :--- | :--- |
-| **Ingestion Formats** | Manual typing from photos | Multi-format: **PDF, JPEG, PNG, Apple HEIC**, wrinkled receipts |
-| **Granularity** | Single invoice total entered manually | **Item-by-item breakdown** into 9 official budgetary accounts |
-| **Transcription Error** | ~3–5% human error | **0% arithmetic & transcription error** (enforced by Pydantic) |
-| **Annual Time Saved** | ~220 hours of volunteer admin work | **>200 hours reallocated** to direct street outreach |
-| **Audit Readiness** | Scattered Drive folders | **Immutable General Ledger + Multi-tab Excel + Google Sheets** |
-
----
-
-## 🏛️ System Architecture
+## Architecture
 
 ```mermaid
 flowchart TD
-    Drive["📂 Google Drive Ingestion<br/>(Heterogeneous Tickets across Sedes)"]
-    Orch["⚙️ Batch Orchestration Engine<br/>(MIME Type Detection: PDF/JPG/PNG/HEIC)"]
+    Drive["Google Drive (receipt photos)"] --> Orch["Batch Orchestrator (MIME detection)"]
     
-    subgraph VisionPipeline ["1. Multimodal AI Extraction Layer"]
-        ModelPool["🔄 Google Gemini Vision Model Cascade<br/>(Gemini Flash OCR)"]
-        Schema["📋 Strict Pydantic Schema Validation<br/>(Vendor, CIF, Date, Line Items, VAT)"]
-        Cache["⚡ Local JSON Extraction Cache<br/>(salida_json/*.json)"]
+    subgraph Extraction ["AI Extraction"]
+        Model["Gemini Vision OCR"]
+        Schema["Pydantic Schema Validation"]
+        Cache["JSON Cache"]
     end
 
-    subgraph AccountingEngine ["2. Categorization & Normalization"]
-        Classifier["🏷️ 9-Category Semantic Budget Classifier<br/>(Panadería, Embutidos, Quesos, Bebidas, etc.)"]
-        Sanitizer["🧹 Vendor Sanitization & Anti-Duplication<br/>(Renames to Sede_InvoiceNumber_PR.ext)"]
+    subgraph Accounting ["Classification"]
+        Classifier["9-Category Budget Classifier"]
+        Sanitizer["Vendor Normalization"]
     end
 
-    subgraph PersistenceLayer ["3. Dual Persistence & Reporting"]
-        Ledger["📗 Immutable General Ledger (CSV & SQLite)"]
-        Excel["📊 Consolidated National Excel Workbook<br/>(OpenPyXL Multi-tab with Pivot Summaries)"]
-        Sheets["☁️ Live Google Sheets Synchronization<br/>(Audit-Proof Reporting for Public Grants)"]
+    subgraph Output ["Persistence"]
+        Ledger["General Ledger (CSV)"]
+        Excel["Consolidated Excel Workbook"]
+        Sheets["Google Sheets Sync"]
     end
 
-    Drive --> Orch
-    Orch --> ModelPool
-    ModelPool --> Schema
-    Schema --> Cache
-    Cache --> Classifier
-    Classifier --> Sanitizer
+    Orch --> Model --> Schema --> Cache
+    Cache --> Classifier --> Sanitizer
     Sanitizer --> Ledger
     Sanitizer --> Excel
     Sanitizer --> Sheets
 ```
 
----
+## The 9 budget categories
 
-## 🎯 The 9 Budgetary Categories
+Every purchased item gets classified into one of these:
 
-Every line item purchased across supermarkets (Mercadona, Carrefour, Dia, Alcampo, local bakeries) is automatically parsed and mapped into one of the 9 official NGO accounting accounts:
+1. **Panadería** — bread, rolls, baguettes
+2. **Embutidos** — cold cuts, ham, chorizo
+3. **Quesos** — cheese
+4. **Bebidas** — broth, gazpacho, water, juice
+5. **Tortillas** — ready-made potato omelettes
+6. **Frutas y Verduras** — fruit and vegetables
+7. **Desechables y Enseres** — napkins, gloves, foil, bags
+8. **Logística y Transporte** — van fuel, parking, transport passes
+9. **Otros** — first-aid supplies, non-recurring items
 
-1. `Panadería` (Bread, rolls, baguettes)
-2. `Embutidos` (Cold cuts, ham, chorizo)
-3. `Quesos` (Cheese slices, spreads)
-4. `Bebidas` (Warm broths, gazpacho, water, juices)
-5. `Tortillas` (Ready-made potato omelettes)
-6. `Frutas y Verduras` (Apples, bananas, oranges)
-7. `Desechables y Enseres` (Napkins, aluminum foil, nitrile gloves, bags)
-8. `Logística y Transporte` (Van fuel, transport passes, parking tickets)
-9. `Otros` (First-aid items, specific non-recurring supplies)
+## Schema validation
 
----
+Every extraction is validated against a strict Pydantic model, so malformed LLM output gets caught immediately:
 
-## 🔧 Engineering Highlights
-
-### 1. Robust Schema Validation with Pydantic
-The system guarantees zero hallucination or formatting drift by enforcing a strict schema:
 ```python
 class ItemFactura(BaseModel):
     concepto: str
-    categoria: CategoriaBokatas  # Enforced 9-enum classification
+    categoria: CategoriaBokatas  # enforced enum
     cantidad: float
     precio_unitario: float
     total: float
@@ -97,50 +75,30 @@ class DatosFacturaBokatas(BaseModel):
     cuota_iva: float
 ```
 
-### 2. Multi-Format & Cold-Chain Resilience
-- **HEIC & Image Support**: Volunteer photos taken on iPhones (`.HEIC`) are converted on the fly without loss of metadata.
-- **Wrinkled & Faded Receipts**: Prompts engineered for high robustness against thermal paper fading and crumpled physical tickets.
-- **Deterministic Renaming**: Every processed file is stamped with the `_PR` (Processed) suffix in Google Drive to guarantee idempotent runs.
+## Running locally
 
----
+You can test the pipeline without Google Cloud credentials using the included simulation:
 
-## 🚀 Quickstart & Standalone Simulation
-
-You can test this pipeline locally without needing Google Cloud credentials or Google Drive access using the included **local simulation runner**:
-
-### 1. Clone & Setup Environment
 ```bash
 git clone https://github.com/MiguelMartinVieira/bokatas-ocr-accounting-pipeline.git
 cd bokatas-ocr-accounting-pipeline
 
-# Install dependencies using uv
-uv venv
-uv pip install -r requirements.txt
+uv venv && uv pip install -r requirements.txt
+uv run python demo_simulation.py
 ```
 
-### 2. Run Offline Simulation Mode
-Runs the end-to-end pipeline using cached multimodal extraction payloads:
+For live OCR on a real receipt:
 ```bash
-uv run python prueba_simulacion_local.py
+export GEMINI_API_KEY="your-key"
+uv run python prueba_02_gemini_ocr.py path/to/receipt.jpg
 ```
 
-### 3. Run Live Gemini OCR on a Sample Ticket
-```bash
-export GEMINI_API_KEY="your-gemini-api-key"
-uv run python prueba_02_gemini_ocr.py Facturas_Sedes/Bernabeu/ticket_mercadona_bernabeu.jpg
-```
+## Output
 
----
+The pipeline generates `Consolidado_Gastos_Nacional_Bokatas.xlsx` with:
+- **Detalle_Gastos** — row-by-row itemized purchases across all cities
+- **Resumen_Nacional_Categorias** — cross-tab of spending per category per city
 
-## 📈 Analytics & Reporting
+## License
 
-The pipeline generates `Consolidado_Gastos_Nacional_Bokatas.xlsx` containing:
-- **`Detalle_Gastos`**: Complete row-by-row itemized purchases across all national chapters.
-- **`Resumen_Nacional_Categorias`**: Dynamic cross-tabulation table comparing expenditure per category per city.
-
----
-
-## 📄 License & Attribution
-
-Designed and engineered for **Asociación Bokatas** by **Miguel Martín Vieira** ([LinkedIn](https://linkedin.com/in/miguel-mart%C3%ADn-vieira-77b35b28b)).  
-Distributed under the MIT License.
+MIT — Built for Asociación Bokatas by [Miguel Martín Vieira](https://linkedin.com/in/miguel-mart%C3%ADn-vieira-77b35b28b).
